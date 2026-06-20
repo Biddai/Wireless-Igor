@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flow Timer</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101514; color: #ecf5f0; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(92vw, 34rem); padding: 2rem; border: 1px solid #35564a; border-radius: 1.25rem; background: #17201d; box-shadow: 0 1.5rem 5rem #0008; }
+    h1 { margin-top: 0; letter-spacing: .03em; }
+    p { color: #adc5ba; }
+    button { border: 0; border-radius: .65rem; padding: .8rem 1.1rem; font: inherit; font-weight: 700; cursor: pointer; background: #79e7ae; color: #102018; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #connection { margin: 1rem 0; color: #f6d472; }
+    dl { display: grid; grid-template-columns: 1fr auto; gap: .7rem 1.2rem; margin: 1.5rem 0 0; padding: 1.25rem; border-radius: .75rem; background: #0e1512; }
+    dt { color: #9bb8aa; } dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+    code { color: #79e7ae; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Flow Timer</h1>
+    <p>Connect directly to the nearby timer over Bluetooth LE.</p>
+    <button id="connect">Connect</button>
+    <p id="connection" role="status">Not connected</p>
+    <dl>
+      <dt>Mode</dt><dd id="mode">—</dd>
+      <dt>Current minutes</dt><dd id="minutes">—</dd>
+      <dt>Flow total</dt><dd id="flow">—</dd>
+      <dt>Battery est.</dt><dd id="battery">—</dd>
+      <dt>Last update</dt><dd id="updated">—</dd>
+    </dl>
+    <p><small>Requires Chrome or Edge on desktop and <code>localhost</code> or HTTPS.</small></p>
+  </main>
+  <script>
+    const SERVICE_UUID = '7d4f0001-9f4b-4f4a-8e9b-0a6c1e4f1000';
+    const STATUS_UUID = '7d4f0002-9f4b-4f4a-8e9b-0a6c1e4f1000';
+    const modeNames = [
+      'Menu', 'Idle', 'Counting up', 'Counting down', 'Selecting duration',
+      'Selecting Pomodoro focus', 'Selecting Pomodoro rest',
+      'Pomodoro focus', 'Pomodoro rest'
+    ];
+    const connectButton = document.querySelector('#connect');
+    const connection = document.querySelector('#connection');
+    let device;
+
+    function setConnection(message) {
+      connection.textContent = message;
+    }
+
+    function batteryPercent(millivolts) {
+      const voltagePoints = [3500, 3600, 3700, 3800, 3900, 4000, 4100, 4200];
+      const percentagePoints = [0, 5, 15, 35, 55, 75, 90, 100];
+      if (millivolts <= voltagePoints[0]) return percentagePoints[0];
+      if (millivolts >= voltagePoints.at(-1)) return percentagePoints.at(-1);
+      for (let i = 1; i < voltagePoints.length; i++) {
+        if (millivolts <= voltagePoints[i]) {
+          const fraction = (millivolts - voltagePoints[i - 1]) / (voltagePoints[i] - voltagePoints[i - 1]);
+          return Math.round(percentagePoints[i - 1] + fraction * (percentagePoints[i] - percentagePoints[i - 1]));
+        }
+      }
+      return 0;
+    }
+
+    function decodeStatus(dataView) {
+      if (dataView.byteLength !== 12 || dataView.getUint8(0) !== 1) {
+        setConnection('Unsupported Flow Timer status packet.');
+        return;
+      }
+      const state = dataView.getUint8(1);
+      document.querySelector('#mode').textContent = modeNames[state] ?? `Unknown (${state})`;
+      document.querySelector('#minutes').textContent = dataView.getUint16(2, true);
+      document.querySelector('#flow').textContent = dataView.getUint32(4, true);
+      const millivolts = dataView.getUint16(8, true);
+      document.querySelector('#battery').textContent = millivolts === 0
+        ? 'USB power (battery unavailable)'
+        : `${batteryPercent(millivolts)}% (${(millivolts / 1000).toFixed(2)} V)`;
+      document.querySelector('#updated').textContent = new Date().toLocaleTimeString();
+    }
+
+    async function connect() {
+      if (!navigator.bluetooth) {
+        setConnection('Web Bluetooth is unavailable. Use Chrome or Edge on desktop.');
+        return;
+      }
+      connectButton.disabled = true;
+      try {
+        device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
+        device.addEventListener('gattserverdisconnected', () => {
+          setConnection('Disconnected');
+          connectButton.disabled = false;
+          connectButton.textContent = 'Connect';
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(STATUS_UUID);
+        characteristic.addEventListener('characteristicvaluechanged', event => decodeStatus(event.target.value));
+        decodeStatus(await characteristic.readValue());
+        await characteristic.startNotifications();
+        setConnection(`Connected to ${device.name || 'Project IGOR Wireless'}`);
+        connectButton.textContent = 'Disconnect';
+        connectButton.disabled = false;
+      } catch (error) {
+        console.error(error);
+        setConnection(`Connection failed: ${error.message}`);
+        connectButton.disabled = false;
+      }
+    }
+
+    connectButton.addEventListener('click', () => {
+      if (device && device.gatt.connected) {
+        device.gatt.disconnect();
+      } else {
+        connect();
+      }
+    });
+  </script>
+</body>
+</html>
