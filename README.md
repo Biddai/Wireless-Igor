@@ -10,6 +10,24 @@ timer.
 All credit for the original design and firmware goes to
 [Urban Circles' Project IGOR](https://makerworld.com/en/models/1000048-project-igor-open-source-offline-focus-partner).
 
+## Bill of materials
+
+Quantities below are for one timer. The linked listings may be sold in
+multi-packs; select the variant and quantity that suit your build.
+
+| Qty. | Part | Notes | Source |
+| ---: | --- | --- | --- |
+| 1 | 0.96 in I2C OLED display | Original - Blue and Yellow | [AliExpress](https://he.aliexpress.com/item/1005006262908701.html) |
+| 1 | nice!nano v2-compatible nRF52840 board | Bluetooth-enabled controller with LiPo charging support | [AliExpress](https://he.aliexpress.com/item/1005006271881076.html) |
+| 1 | KY-040 rotary encoder module | Includes rotary input and push-button switch | [AliExpress](https://he.aliexpress.com/item/1005007535950950.html) |
+| 1 | SS12F15 SPDT slide switch | Battery power switch | [AliExpress](https://he.aliexpress.com/item/1005005620172753.html) |
+| 1 | Single-cell LiPo battery | 3.7 V 602030, 300 mAh example cell | [AliExpress](https://he.aliexpress.com/item/1005006444661116.html) |
+| 4 | M2 5mm Hex-socket screws | Choose the correct size | [AliExpress](https://he.aliexpress.com/item/1005007798633538.html) |
+
+Any suitably small single-cell LiPo battery can be used. This build uses a
+recycled battery from a disposable vape; only reuse an undamaged cell and take
+appropriate precautions when handling and charging it.
+
 ## Wiring
 
 All peripherals must use **3.3 V logic**. Do not connect a 5 V I2C pull-up or
