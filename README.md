@@ -1,4 +1,4 @@
-# Project Igor Wireless
+# Project IGOR Wireless
 
 The original Project IGOR, a small focus timer, is awesome. My main issue with
 it was the cable.. But it all ends here!
